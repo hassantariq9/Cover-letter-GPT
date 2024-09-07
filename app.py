@@ -3,67 +3,75 @@ import streamlit as st
 from groq import Groq
 import fitz  # PyMuPDF
 import docx
+from dotenv import load_dotenv
 
-# Initialize Groq client with API key from Hugging Face environment
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+# Load environment variables from the .env file (if running locally)
+load_dotenv()
 
-# Streamlit app
-st.title("Job Application Cover Letter Generator")
+# Initialize Groq client with API key from environment
+groq_api_key = os.getenv("GROQ_API_KEY")
 
-st.write("Upload your CV and the job description to generate a customized cover letter.")
+if not groq_api_key:
+    st.error("Error: Groq API key not found. Please set it as an environment variable.")
+else:
+    client = Groq(api_key=groq_api_key)
 
-# Upload CV and Job Description
-cv_file = st.file_uploader("Upload your CV", type=["pdf", "docx"])
-job_desc_file = st.file_uploader("Upload Job Description", type=["pdf", "docx"])
+    # Streamlit app
+    st.title("Job Application Cover Letter Generator")
 
-def extract_text(file):
-    """Extract text from a PDF or DOCX file."""
-    if file.name.endswith('.pdf'):
-        return extract_text_from_pdf(file)
-    elif file.name.endswith('.docx'):
-        return extract_text_from_docx(file)
-    else:
-        return None
+    st.write("Upload your CV and the job description to generate a customized cover letter.")
 
-def extract_text_from_pdf(file):
-    """Extract text from a PDF file using PyMuPDF."""
-    doc = fitz.open(stream=file.read(), filetype="pdf")
-    text = ""
-    for page in doc:
-        text += page.get_text()
-    return text
+    # Upload CV and Job Description
+    cv_file = st.file_uploader("Upload your CV", type=["pdf", "docx"])
+    job_desc_file = st.file_uploader("Upload Job Description", type=["pdf", "docx"])
 
-def extract_text_from_docx(file):
-    """Extract text from a DOCX file using python-docx."""
-    doc = docx.Document(file)
-    text = ""
-    for paragraph in doc.paragraphs:
-        text += paragraph.text + "\n"
-    return text
+    def extract_text(file):
+        """Extract text from a PDF or DOCX file."""
+        if file.name.endswith('.pdf'):
+            return extract_text_from_pdf(file)
+        elif file.name.endswith('.docx'):
+            return extract_text_from_docx(file)
+        else:
+            return None
 
-if st.button("Generate Cover Letter"):
+    def extract_text_from_pdf(file):
+        """Extract text from a PDF file using PyMuPDF."""
+        doc = fitz.open(stream=file.read(), filetype="pdf")
+        text = ""
+        for page in doc:
+            text += page.get_text()
+        return text
 
-    if cv_file and job_desc_file:
-        # Read the content of the files
-        cv_text = extract_text(cv_file)
-        job_desc_text = extract_text(job_desc_file)
+    def extract_text_from_docx(file):
+        """Extract text from a DOCX file using python-docx."""
+        doc = docx.Document(file)
+        text = ""
+        for paragraph in doc.paragraphs:
+            text += paragraph.text + "\n"
+        return text
 
-        # Generate cover letter using Groq
-        prompt = f"Using the following CV:\n{cv_text}\nand the job description:\n{job_desc_text}\nGenerate a tailored cover letter."
+    if st.button("Generate Cover Letter"):
+        if cv_file and job_desc_file:
+            # Read the content of the files
+            cv_text = extract_text(cv_file)
+            job_desc_text = extract_text(job_desc_file)
 
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ],
-            model="llama3-8b-8192",
-        )
+            # Generate cover letter using Groq
+            prompt = f"Using the following CV:\n{cv_text}\nand the job description:\n{job_desc_text}\nGenerate a tailored cover letter."
 
-        cover_letter = chat_completion.choices[0].message.content
-        st.write("### Generated Cover Letter:")
-        st.write(cover_letter)
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    }
+                ],
+                model="llama3-8b-8192",
+            )
 
-    else:
-        st.write("Please upload both a CV and a job description.")
+            cover_letter = chat_completion.choices[0].message.content
+            st.write("### Generated Cover Letter:")
+            st.write(cover_letter)
+
+        else:
+            st.write("Please upload both a CV and a job description.")
